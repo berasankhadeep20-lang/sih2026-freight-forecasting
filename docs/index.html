@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CargoNex — SIH 2026 Progress &amp; Live Demo</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚢</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f9fb; --surface: #ffffff; --border: #e2e8f0;
+    --text-primary: #16202b; --text-secondary: #56606b;
+    --blue: #2f6fed; --blue-bg: #e8f0fe;
+    --teal: #0f8a7e; --teal-bg: #e3f6f3;
+    --purple: #7c5cff; --purple-bg: #efe9ff;
+    --coral: #e0654f; --coral-bg: #fbe9e6;
+    --green: #1f9d55; --green-bg: #e5f7ea;
+    --gray-bg: #eef1f4;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1620; --surface: #161f2b; --border: #2a3644;
+      --text-primary: #eef2f6; --text-secondary: #9aa7b4;
+      --blue-bg: #16305c; --teal-bg: #10332e; --purple-bg: #2c2450;
+      --coral-bg: #3c211c; --green-bg: #123822; --gray-bg: #1b2531;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1620; --surface: #161f2b; --border: #2a3644;
+    --text-primary: #eef2f6; --text-secondary: #9aa7b4;
+    --blue-bg: #16305c; --teal-bg: #10332e; --purple-bg: #2c2450;
+    --coral-bg: #3c211c; --green-bg: #123822; --gray-bg: #1b2531;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 0 20px 80px; }
+  header.hero {
+    padding: 56px 20px 40px; text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  header.hero h1 { font-size: 2.2rem; margin: 0 0 8px; }
+  header.hero p.tag { color: var(--text-secondary); margin: 0 0 20px; font-size: 1.05rem; }
+  .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .badge {
+    font-size: 0.85rem; padding: 6px 14px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text-secondary);
+  }
+  .badge.live { background: var(--green-bg); color: var(--green); border-color: transparent; font-weight: 600; }
+  a { color: var(--blue); }
+  section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+  section:last-child { border-bottom: none; }
+  h2 { font-size: 1.5rem; margin: 0 0 6px; }
+  p.section-sub { color: var(--text-secondary); margin: 0 0 28px; max-width: 640px; }
+  .milestones { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .milestones li {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px; overflow-x: auto;
+  }
+  .check { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; }
+  .check.done { background: var(--green-bg); color: var(--green); }
+  .check.pending { background: var(--gray-bg); color: var(--text-secondary); }
+  .milestone-title { font-weight: 600; }
+  .milestone-desc { color: var(--text-secondary); font-size: 0.9rem; }
+  .test-count {
+    text-align: center; margin: 28px 0 0; padding: 20px;
+    background: var(--green-bg); border-radius: 12px;
+  }
+  .test-count .num { font-size: 2.4rem; font-weight: 800; color: var(--green); }
+  .test-count .label { color: var(--text-secondary); }
+
+  .arch-svg-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; }
+  .arch-svg-wrap svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  .layer-band { fill: var(--gray-bg); stroke: var(--border); }
+  .layer-title { fill: var(--text-secondary); font-size: 15px; font-weight: 700; }
+  .node-box { stroke-width: 1; }
+  .node-text { font-size: 14px; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+  .n-blue { fill: var(--blue-bg); stroke: var(--blue); } .n-blue .node-text { fill: var(--blue); }
+  .n-teal { fill: var(--teal-bg); stroke: var(--teal); } .n-teal .node-text { fill: var(--teal); }
+  .n-purple { fill: var(--purple-bg); stroke: var(--purple); } .n-purple .node-text { fill: var(--purple); }
+  .n-coral { fill: var(--coral-bg); stroke: var(--coral); } .n-coral .node-text { fill: var(--coral); }
+  .arch-arrow { stroke: var(--text-secondary); stroke-width: 1.5; fill: none; }
+
+  .demo-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px;
+  }
+  .demo-honesty {
+    font-size: 0.85rem; color: var(--text-secondary); background: var(--gray-bg);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 20px;
+  }
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.92rem; }
+  .field .hint { color: var(--text-secondary); font-size: 0.82rem; margin-top: 4px; }
+  input[type="range"] { width: 100%; }
+  .route-line { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 18px; }
+  .toggles { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 20px; }
+  .toggles label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; }
+  .result-grid { display: grid; gap: 14px; margin-top: 22px; }
+  .result-card { border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); }
+  .result-card h4 { margin: 0 0 6px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+  .result-card .value { font-size: 1.1rem; font-weight: 700; }
+  .result-card .reason { font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px; }
+  .constrained { border-color: var(--coral); }
+  .alert-item { padding: 10px 12px; border-radius: 8px; margin-top: 8px; font-size: 0.88rem; }
+  .alert-high { background: var(--coral-bg); color: var(--coral); }
+  .alert-medium { background: #fff6e0; color: #a06b00; }
+  .alert-low { background: var(--gray-bg); color: var(--text-secondary); }
+  .alert-none { color: var(--text-secondary); font-size: 0.9rem; }
+  .chart-wrap { margin-top: 22px; background: var(--bg); border-radius: 10px; padding: 12px; }
+  .windows-list { display: grid; gap: 8px; margin-top: 8px; }
+  .window-item { display: flex; justify-content: space-between; background: var(--gray-bg);
+    border-radius: 8px; padding: 8px 12px; font-size: 0.88rem; }
+
+  footer { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 0.9rem; }
+  footer a { margin: 0 8px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>🚢 CargoNex</h1>
+  <p class="tag">Intelligent Freight Forecasting Model for Optimized Vessel Chartering<br>Smart India Hackathon 2026 · Problem Statement 26006</p>
+  <div class="badges">
+    <span class="badge live">45/45 tests passing</span>
+    <span class="badge">Python · FastAPI · Prophet · XGBoost</span>
+    <span class="badge">Team CargoNex</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="progress">
+  <h2>Build Progress</h2>
+  <p class="section-sub">Every item below marked done is real, tested code in the repository — not a plan.</p>
+  <ul class="milestones" id="milestone-list"></ul>
+  <div class="test-count">
+    <div class="num">45 / 45</div>
+    <div class="label">automated tests passing (39 unit + 6 integration)</div>
+  </div>
+</section>
+
+<section id="architecture">
+  <h2>System Architecture</h2>
+  <p class="section-sub">Clean, layered architecture — each layer depends only on the layer below it through abstract interfaces, which is what makes the demo below possible to run independently of the Python backend for its deterministic parts.</p>
+  <div class="arch-svg-wrap">
+    <svg viewBox="0 0 680 546" width="680" role="img" aria-label="CargoNex four-layer architecture diagram">
+      <rect class="layer-band" x="40" y="40" width="600" height="94" rx="16"/>
+      <text class="layer-title" x="60" y="66">Presentation layer</text>
+      <g class="n-blue"><rect class="node-box" x="260" y="80" width="160" height="44" rx="8"/><text class="node-text" x="340" y="102">React dashboard</text></g>
+
+      <rect class="layer-band" x="40" y="164" width="600" height="94" rx="16"/>
+      <text class="layer-title" x="60" y="190">API layer</text>
+      <g class="n-teal"><rect class="node-box" x="265" y="204" width="150" height="44" rx="8"/><text class="node-text" x="340" y="226">REST endpoints</text></g>
+
+      <rect class="layer-band" x="40" y="288" width="600" height="94" rx="16"/>
+      <text class="layer-title" x="60" y="314">Application layer</text>
+      <g class="n-purple"><rect class="node-box" x="145" y="328" width="180" height="44" rx="8"/><text class="node-text" x="235" y="350">Core services (4)</text></g>
+      <g class="n-purple"><rect class="node-box" x="345" y="328" width="190" height="44" rx="8"/><text class="node-text" x="440" y="350">Query orchestrator</text></g>
+
+      <rect class="layer-band" x="40" y="412" width="600" height="94" rx="16"/>
+      <text class="layer-title" x="60" y="438">Infrastructure layer</text>
+      <g class="n-coral"><rect class="node-box" x="162" y="452" width="168" height="44" rx="8"/><text class="node-text" x="246" y="474">SQLAlchemy repos</text></g>
+      <g class="n-coral"><rect class="node-box" x="350" y="452" width="168" height="44" rx="8"/><text class="node-text" x="434" y="474">Prophet + XGBoost</text></g>
+
+      <line class="arch-arrow" x1="340" y1="124" x2="340" y2="204" marker-end="url(#a)"/>
+      <line class="arch-arrow" x1="340" y1="248" x2="340" y2="318"/>
+      <line class="arch-arrow" x1="340" y1="318" x2="235" y2="328" marker-end="url(#a)"/>
+      <line class="arch-arrow" x1="340" y1="318" x2="440" y2="328" marker-end="url(#a)"/>
+      <line class="arch-arrow" x1="235" y1="372" x2="246" y2="452" marker-end="url(#a)"/>
+      <line class="arch-arrow" x1="440" y1="372" x2="434" y2="452" marker-end="url(#a)"/>
+      <defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-secondary)"/>
+      </marker></defs>
+    </svg>
+  </div>
+</section>
+
+<section id="demo">
+  <h2>Live Interactive Demo</h2>
+  <p class="section-sub">Try a real query against the system's actual decision logic.</p>
+  <div class="demo-panel">
+    <div class="demo-honesty">
+      <strong>What's actually live here:</strong> vessel matching, timing-window ranking, and risk alerting below are the
+      <em>real algorithms</em> from the Python codebase, ported line-for-line into the JavaScript running in your browser right now —
+      not a mockup. The 60-day rate forecast is real output from the actual Prophet + XGBoost ensemble
+      (<code>model_version: prophet_xgb_residual_v1</code>), pre-computed since GitHub Pages can't run a Python model server;
+      the forecast curve itself doesn't change with your inputs below, but everything else genuinely recomputes.
+    </div>
+
+    <div class="route-line">Route: <strong>Newcastle, Australia</strong> → <strong>Paradip, India</strong> · Commodity: coal</div>
+
+    <div class="field">
+      <label for="cargo">Cargo volume: <span id="cargo-val">70,000</span> t</label>
+      <input type="range" id="cargo" min="10000" max="200000" step="1000" value="70000">
+      <div class="hint">Try values above 180,000t to see the "no vessel class fits" error the real system raises.</div>
+    </div>
+
+    <div class="toggles">
+      <label><input type="checkbox" id="sim-shallow"> Simulate shallow destination port (demo only — forces a draft limit of 12.0m)</label>
+      <label><input type="checkbox" id="sim-congestion"> Simulate high congestion at destination (demo only — sets score to 0.85)</label>
+    </div>
+
+    <div id="output"></div>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <div>
+    <a href="https://github.com/berasankhadeep20-lang/sih2026-freight-forecasting" target="_blank" rel="noopener">GitHub Repository</a>
+    ·
+    <a href="https://github.com/berasankhadeep20-lang/sih2026-freight-forecasting/blob/main/CargoNex-Project-Report.md" target="_blank" rel="noopener">Project Report</a>
+  </div>
+  <div style="margin-top:8px;">CargoNex · Smart India Hackathon 2026 · Problem Statement 26006</div>
+</footer>
+
+<script>
+// ---------------------------------------------------------------------
+// MILESTONES (static content — reflects the actual repo state)
+// ---------------------------------------------------------------------
+const MILESTONES = [
+  { done: true,  title: "Data Ingestion", desc: "BDI CSV parsing + validation — 9 tests" },
+  { done: true,  title: "Forecasting Service", desc: "Prophet + XGBoost residual ensemble, backtest-gated — 5 tests" },
+  { done: true,  title: "Vessel Matching", desc: "Port-constraint-aware, natural-class-first — 12 tests" },
+  { done: true,  title: "Timing Recommendation", desc: "Non-overlapping low-rate window ranking" },
+  { done: true,  title: "Risk Alerts", desc: "Volatility + congestion, explicit data-unavailable handling — 10 tests" },
+  { done: true,  title: "Query Orchestrator", desc: "End-to-end pipeline wiring all services — 3 tests" },
+  { done: true,  title: "REST API + Database", desc: "FastAPI + SQLAlchemy, integration-tested — 6 tests" },
+  { done: false, title: "Real Kaggle Dataset", desc: "Currently using placeholder synthetic data" },
+  { done: false, title: "Frontend Dashboard", desc: "Not yet built" },
+];
+const list = document.getElementById("milestone-list");
+MILESTONES.forEach(m => {
+  const li = document.createElement("li");
+  li.innerHTML = `<span class="check ${m.done ? 'done' : 'pending'}">${m.done ? '✓' : '·'}</span>
+    <span><span class="milestone-title">${m.title}</span><br><span class="milestone-desc">${m.desc}</span></span>`;
+  list.appendChild(li);
+});
+
+// ---------------------------------------------------------------------
+// REAL PRE-COMPUTED FORECAST (generated by the actual Python system —
+// see application/forecasting_service.py; route Newcastle -> Paradip,
+// Panamax, 730 days of synthetic-but-real-pipeline history, horizon 60)
+// ---------------------------------------------------------------------
+const FORECAST = {"model_version": "prophet_xgb_residual_v1", "points": [{"day_offset": 0, "predicted_rate": 27.08, "lower_bound": 25.99, "upper_bound": 28.11}, {"day_offset": 1, "predicted_rate": 27.2, "lower_bound": 26.25, "upper_bound": 28.25}, {"day_offset": 2, "predicted_rate": 26.91, "lower_bound": 25.91, "upper_bound": 27.94}, {"day_offset": 3, "predicted_rate": 27.28, "lower_bound": 26.29, "upper_bound": 28.26}, {"day_offset": 4, "predicted_rate": 27.74, "lower_bound": 26.71, "upper_bound": 28.8}, {"day_offset": 5, "predicted_rate": 27.69, "lower_bound": 26.73, "upper_bound": 28.66}, {"day_offset": 6, "predicted_rate": 27.8, "lower_bound": 26.69, "upper_bound": 28.75}, {"day_offset": 7, "predicted_rate": 28.12, "lower_bound": 27.14, "upper_bound": 29.12}, {"day_offset": 8, "predicted_rate": 27.81, "lower_bound": 26.81, "upper_bound": 28.82}, {"day_offset": 9, "predicted_rate": 27.47, "lower_bound": 26.51, "upper_bound": 28.51}, {"day_offset": 10, "predicted_rate": 27.71, "lower_bound": 26.73, "upper_bound": 28.71}, {"day_offset": 11, "predicted_rate": 28.51, "lower_bound": 27.53, "upper_bound": 29.47}, {"day_offset": 12, "predicted_rate": 27.64, "lower_bound": 26.61, "upper_bound": 28.58}, {"day_offset": 13, "predicted_rate": 28.01, "lower_bound": 26.99, "upper_bound": 29.01}, {"day_offset": 14, "predicted_rate": 27.47, "lower_bound": 26.39, "upper_bound": 28.43}, {"day_offset": 15, "predicted_rate": 28.07, "lower_bound": 27.08, "upper_bound": 29.06}, {"day_offset": 16, "predicted_rate": 28.27, "lower_bound": 27.32, "upper_bound": 29.29}, {"day_offset": 17, "predicted_rate": 28.57, "lower_bound": 27.68, "upper_bound": 29.54}, {"day_offset": 18, "predicted_rate": 28.02, "lower_bound": 26.97, "upper_bound": 29.02}, {"day_offset": 19, "predicted_rate": 28.93, "lower_bound": 27.88, "upper_bound": 29.86}, {"day_offset": 20, "predicted_rate": 28.3, "lower_bound": 27.26, "upper_bound": 29.31}, {"day_offset": 21, "predicted_rate": 27.99, "lower_bound": 26.99, "upper_bound": 28.9}, {"day_offset": 22, "predicted_rate": 29.01, "lower_bound": 28.04, "upper_bound": 29.97}, {"day_offset": 23, "predicted_rate": 28.94, "lower_bound": 28.01, "upper_bound": 29.91}, {"day_offset": 24, "predicted_rate": 28.08, "lower_bound": 27.07, "upper_bound": 29.12}, {"day_offset": 25, "predicted_rate": 28.2, "lower_bound": 27.19, "upper_bound": 29.18}, {"day_offset": 26, "predicted_rate": 28.32, "lower_bound": 27.31, "upper_bound": 29.29}, {"day_offset": 27, "predicted_rate": 28.9, "lower_bound": 27.86, "upper_bound": 29.95}, {"day_offset": 28, "predicted_rate": 29.38, "lower_bound": 28.38, "upper_bound": 30.39}, {"day_offset": 29, "predicted_rate": 28.48, "lower_bound": 27.45, "upper_bound": 29.44}, {"day_offset": 30, "predicted_rate": 28.89, "lower_bound": 27.84, "upper_bound": 29.87}, {"day_offset": 31, "predicted_rate": 29.26, "lower_bound": 28.26, "upper_bound": 30.3}, {"day_offset": 32, "predicted_rate": 29.09, "lower_bound": 28.05, "upper_bound": 30.1}, {"day_offset": 33, "predicted_rate": 29.23, "lower_bound": 28.24, "upper_bound": 30.23}, {"day_offset": 34, "predicted_rate": 29.12, "lower_bound": 28.17, "upper_bound": 30.19}, {"day_offset": 35, "predicted_rate": 29.01, "lower_bound": 27.99, "upper_bound": 29.99}, {"day_offset": 36, "predicted_rate": 29.28, "lower_bound": 28.25, "upper_bound": 30.33}, {"day_offset": 37, "predicted_rate": 29.29, "lower_bound": 28.3, "upper_bound": 30.34}, {"day_offset": 38, "predicted_rate": 29.13, "lower_bound": 28.2, "upper_bound": 30.18}, {"day_offset": 39, "predicted_rate": 29.23, "lower_bound": 28.23, "upper_bound": 30.24}, {"day_offset": 40, "predicted_rate": 29.45, "lower_bound": 28.45, "upper_bound": 30.53}, {"day_offset": 41, "predicted_rate": 30.04, "lower_bound": 29.04, "upper_bound": 31.06}, {"day_offset": 42, "predicted_rate": 29.6, "lower_bound": 28.62, "upper_bound": 30.56}, {"day_offset": 43, "predicted_rate": 29.78, "lower_bound": 28.79, "upper_bound": 30.72}, {"day_offset": 44, "predicted_rate": 30.12, "lower_bound": 29.08, "upper_bound": 31.18}, {"day_offset": 45, "predicted_rate": 29.67, "lower_bound": 28.66, "upper_bound": 30.68}, {"day_offset": 46, "predicted_rate": 29.65, "lower_bound": 28.62, "upper_bound": 30.68}, {"day_offset": 47, "predicted_rate": 30.63, "lower_bound": 29.68, "upper_bound": 31.64}, {"day_offset": 48, "predicted_rate": 29.11, "lower_bound": 28.1, "upper_bound": 30.17}, {"day_offset": 49, "predicted_rate": 29.85, "lower_bound": 28.86, "upper_bound": 30.89}, {"day_offset": 50, "predicted_rate": 30.0, "lower_bound": 28.99, "upper_bound": 30.99}, {"day_offset": 51, "predicted_rate": 30.24, "lower_bound": 29.23, "upper_bound": 31.23}, {"day_offset": 52, "predicted_rate": 30.7, "lower_bound": 29.7, "upper_bound": 31.59}, {"day_offset": 53, "predicted_rate": 29.82, "lower_bound": 28.85, "upper_bound": 30.86}, {"day_offset": 54, "predicted_rate": 29.61, "lower_bound": 28.62, "upper_bound": 30.63}, {"day_offset": 55, "predicted_rate": 29.51, "lower_bound": 28.48, "upper_bound": 30.48}, {"day_offset": 56, "predicted_rate": 29.75, "lower_bound": 28.72, "upper_bound": 30.73}, {"day_offset": 57, "predicted_rate": 30.02, "lower_bound": 29.11, "upper_bound": 31.1}, {"day_offset": 58, "predicted_rate": 29.9, "lower_bound": 28.87, "upper_bound": 30.92}, {"day_offset": 59, "predicted_rate": 30.01, "lower_bound": 29.05, "upper_bound": 30.95}]};
+
+// ---------------------------------------------------------------------
+// REAL LOGIC, PORTED FROM PYTHON — these three functions are direct
+// ports of application/vessel_matching_service.py,
+// application/timing_recommendation_service.py, and
+// application/risk_alert_service.py. Same algorithm, same thresholds.
+// ---------------------------------------------------------------------
+const VESSEL_CLASSES = [
+  { name: "Handysize", min_dwt: 10000,  max_dwt: 40000,  draft: 10.0, loa: 190.0, beam: 30.0 },
+  { name: "Supramax",  min_dwt: 40001,  max_dwt: 60000,  draft: 12.0, loa: 200.0, beam: 32.0 },
+  { name: "Panamax",   min_dwt: 60001,  max_dwt: 80000,  draft: 14.0, loa: 225.0, beam: 32.3 },
+  { name: "Capesize",  min_dwt: 80001,  max_dwt: 180000, draft: 18.0, loa: 290.0, beam: 45.0 },
+];
+const ORIGIN_PORT = { name: "Newcastle", draft: 20.0, loa: 320.0, beam: 50.0, congestion: 0.15 };
+const BASE_DEST_PORT = { name: "Paradip", draft: 18.0, loa: 300.0, beam: 45.0, congestion: 0.30 };
+
+function fitsPort(vc, port) {
+  if (vc.draft > port.draft) return { ok: false, reason: `${vc.name} draft ${vc.draft}m exceeds ${port.name}'s max draft ${port.draft}m` };
+  if (vc.loa > port.loa) return { ok: false, reason: `${vc.name} LOA ${vc.loa}m exceeds ${port.name}'s max LOA ${port.loa}m` };
+  if (vc.beam > port.beam) return { ok: false, reason: `${vc.name} beam ${vc.beam}m exceeds ${port.name}'s max beam ${port.beam}m` };
+  return { ok: true, reason: null };
+}
+
+function naturalVesselClass(cargo) {
+  const ascending = [...VESSEL_CLASSES].sort((a, b) => a.max_dwt - b.max_dwt);
+  if (cargo > ascending[ascending.length - 1].max_dwt) {
+    throw new Error(`Cargo volume ${cargo.toLocaleString()}t exceeds the largest known vessel class capacity (${ascending[ascending.length-1].max_dwt.toLocaleString()}t). No standard vessel class can carry this cargo in a single shipment.`);
+  }
+  return ascending.find(vc => vc.max_dwt >= cargo);
+}
+
+function recommendVessel(cargo, origin, dest) {
+  const ascending = [...VESSEL_CLASSES].sort((a, b) => a.max_dwt - b.max_dwt);
+  const natural = naturalVesselClass(cargo);
+  const naturalIndex = ascending.indexOf(natural);
+
+  for (let i = naturalIndex; i >= 0; i--) {
+    const vc = ascending[i];
+    const originFit = fitsPort(vc, origin);
+    const destFit = fitsPort(vc, dest);
+    if (originFit.ok && destFit.ok) {
+      if (i === naturalIndex) {
+        return { vessel_class: vc.name, is_constrained: false,
+          reason: `${vc.name} is the class naturally sized for ${cargo.toLocaleString()}t and fits within both ${origin.name}'s and ${dest.name}'s draft/LOA/beam limits.` };
+      } else {
+        const blocking = fitsPort(natural, origin).reason || fitsPort(natural, dest).reason;
+        return { vessel_class: vc.name, is_constrained: true,
+          reason: `The natural class for ${cargo.toLocaleString()}t is ${natural.name}, but ${blocking}. Stepped down to ${vc.name}, which fits both ports.` };
+      }
+    }
+  }
+  const smallest = ascending[0];
+  const binding = fitsPort(smallest, origin).reason || fitsPort(smallest, dest).reason || "unknown constraint";
+  return { vessel_class: smallest.name, is_constrained: true,
+    reason: `No standard vessel class fits both ports cleanly for this cargo volume, not even the smallest class (${smallest.name}). Recommending it as the closest alternative. Binding constraint: ${binding}` };
+}
+
+function rankWindows(points, windowSize = 5, topN = 3) {
+  if (points.length < windowSize) return [];
+  const candidates = [];
+  for (let start = 0; start <= points.length - windowSize; start++) {
+    const window = points.slice(start, start + windowSize);
+    const avg = window.reduce((s, p) => s + p.predicted_rate, 0) / windowSize;
+    candidates.push({ start: window[0].day_offset, end: window[window.length - 1].day_offset, avg });
+  }
+  candidates.sort((a, b) => a.avg - b.avg);
+  const selected = [];
+  for (const c of candidates) {
+    if (selected.some(s => c.start <= s.end && s.start <= c.end)) continue;
+    selected.push(c);
+    if (selected.length === topN) break;
+  }
+  return selected.map((w, i) => ({ rank: i + 1, ...w }));
+}
+
+function riskAlerts(origin, dest, points) {
+  const alerts = [];
+  const ratios = points.map(p => (p.upper_bound - p.lower_bound) / p.predicted_rate);
+  const avgRatio = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+  if (avgRatio >= 0.30) alerts.push({ severity: "high", message: `Forecast uncertainty is elevated: confidence interval averages ${(avgRatio*100).toFixed(0)}% of the predicted rate.` });
+  else if (avgRatio >= 0.15) alerts.push({ severity: "medium", message: `Forecast uncertainty is moderate: confidence interval averages ${(avgRatio*100).toFixed(0)}% of the predicted rate.` });
+
+  for (const [port, role] of [[origin, "origin"], [dest, "destination"]]) {
+    if (port.congestion >= 0.7) alerts.push({ severity: "high", message: `${port.name} (${role} port) has an elevated congestion score of ${port.congestion.toFixed(2)}. Expect possible delays.` });
+    else if (port.congestion >= 0.4) alerts.push({ severity: "medium", message: `${port.name} (${role} port) has a moderate congestion score of ${port.congestion.toFixed(2)}.` });
+  }
+  return alerts;
+}
+
+// ---------------------------------------------------------------------
+// UI wiring
+// ---------------------------------------------------------------------
+let chart = null;
+const cargoInput = document.getElementById("cargo");
+const cargoVal = document.getElementById("cargo-val");
+const shallowToggle = document.getElementById("sim-shallow");
+const congestionToggle = document.getElementById("sim-congestion");
+const output = document.getElementById("output");
+
+function render() {
+  const cargo = parseInt(cargoInput.value, 10);
+  cargoVal.textContent = cargo.toLocaleString();
+
+  const destPort = { ...BASE_DEST_PORT };
+  if (shallowToggle.checked) destPort.draft = 12.0;
+  if (congestionToggle.checked) destPort.congestion = 0.85;
+
+  let html = "";
+  let recommendation = null;
+  try {
+    recommendation = recommendVessel(cargo, ORIGIN_PORT, destPort);
+  } catch (e) {
+    output.innerHTML = `<div class="result-card constrained"><h4>Error</h4><div class="value">No vessel available</div><div class="reason">${e.message}</div></div>`;
+    if (chart) { chart.destroy(); chart = null; }
+    return;
+  }
+
+  html += `<div class="result-grid">`;
+  html += `<div class="result-card ${recommendation.is_constrained ? 'constrained' : ''}">
+    <h4>Recommended Vessel</h4>
+    <div class="value">${recommendation.vessel_class}${recommendation.is_constrained ? ' (constrained)' : ''}</div>
+    <div class="reason">${recommendation.reason}</div>
+  </div>`;
+
+  const windows = rankWindows(FORECAST.points);
+  html += `<div class="result-card"><h4>Best Entry-Timing Windows</h4><div class="windows-list">`;
+  windows.forEach(w => {
+    html += `<div class="window-item"><span>#${w.rank} · Day ${w.start}–${w.end}</span><span>avg $${w.avg.toFixed(2)}/t</span></div>`;
+  });
+  html += `</div></div>`;
+
+  const alerts = riskAlerts(ORIGIN_PORT, destPort, FORECAST.points);
+  html += `<div class="result-card"><h4>Risk Alerts</h4>`;
+  if (alerts.length === 0) {
+    html += `<div class="alert-none">No elevated risk alerts for the current forecast and port conditions.</div>`;
+  } else {
+    alerts.forEach(a => { html += `<div class="alert-item alert-${a.severity}">${a.message}</div>`; });
+  }
+  html += `</div>`;
+
+  html += `<div class="result-card"><h4>60-Day Forecast (model: ${FORECAST.model_version})</h4>
+    <div class="chart-wrap"><canvas id="forecast-chart" height="220"></canvas></div>
+  </div>`;
+  html += `</div>`;
+
+  output.innerHTML = html;
+
+  const ctx = document.getElementById("forecast-chart");
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: FORECAST.points.map(p => "Day " + p.day_offset),
+      datasets: [
+        { label: "Upper bound", data: FORECAST.points.map(p => p.upper_bound), borderWidth: 0, pointRadius: 0, fill: "+1", backgroundColor: "rgba(47,111,237,0.12)" },
+        { label: "Predicted rate", data: FORECAST.points.map(p => p.predicted_rate), borderColor: "#2f6fed", backgroundColor: "#2f6fed", borderWidth: 2, pointRadius: 0 },
+        { label: "Lower bound", data: FORECAST.points.map(p => p.lower_bound), borderWidth: 0, pointRadius: 0, fill: false },
+      ],
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { labels: { color: getComputedStyle(document.body).getPropertyValue("--text-secondary") } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, color: getComputedStyle(document.body).getPropertyValue("--text-secondary") }, grid: { display: false } },
+        y: { ticks: { color: getComputedStyle(document.body).getPropertyValue("--text-secondary") }, grid: { color: "rgba(128,128,128,0.15)" } },
+      },
+    },
+  });
+}
+
+cargoInput.addEventListener("input", render);
+shallowToggle.addEventListener("change", render);
+congestionToggle.addEventListener("change", render);
+render();
+</script>
+</body>
+</html>
