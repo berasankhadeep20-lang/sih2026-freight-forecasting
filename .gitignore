@@ -1,0 +1,9 @@
+data/raw/*.csv
+__pycache__/
+*.pyc
+.pytest_cache/
+cargonex.db
+*.db
+frontend/node_modules/
+frontend/dist/
+frontend/.env
