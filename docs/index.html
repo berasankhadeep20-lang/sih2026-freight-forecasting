@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CargoNex — SIH 2026 Progress &amp; Live Demo</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚢</text></svg>">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
     --bg: #f7f9fb; --surface: #ffffff; --border: #e2e8f0;
@@ -402,24 +402,55 @@ function render() {
   output.innerHTML = html;
 
   const ctx = document.getElementById("forecast-chart");
-  if (chart) chart.destroy();
+  if (chart) { chart.destroy(); chart = null; }
+
+  if (typeof Chart === "undefined") {
+    // Chart.js failed to load from the CDN (e.g. a version mismatch or a
+    // network hiccup) — degrade visibly instead of leaving a silent,
+    // unexplained blank box where the chart should be.
+    ctx.parentElement.innerHTML =
+      '<p style="color:var(--text-secondary);font-size:0.9rem;">' +
+      "Chart library failed to load, so the forecast graph can't render right now. " +
+      "The underlying numbers are still real — see the table below." +
+      "</p>" +
+      '<div class="windows-list">' +
+      FORECAST.points.filter((_, i) => i % 10 === 0).map(p =>
+        `<div class="window-item"><span>Day ${p.day_offset}</span><span>$${p.predicted_rate.toFixed(2)} (±$${((p.upper_bound - p.lower_bound) / 2).toFixed(2)})</span></div>`
+      ).join("") +
+      "</div>";
+    return;
+  }
+
+  // Confidence band drawn as a direct fill BETWEEN two real datasets
+  // (fill: 0 means "fill to dataset index 0"), not Chart.js's stacking
+  // API — stacking would also shift the "Predicted rate" line's own
+  // value, which is exactly the bug that made the original version of
+  // this chart only shade half the band (upper-to-predicted) instead of
+  // the full upper-to-lower interval.
+  const secondaryColor = getComputedStyle(document.body).getPropertyValue("--text-secondary").trim() || "#56606b";
   chart = new Chart(ctx, {
     type: "line",
     data: {
       labels: FORECAST.points.map(p => "Day " + p.day_offset),
       datasets: [
-        { label: "Upper bound", data: FORECAST.points.map(p => p.upper_bound), borderWidth: 0, pointRadius: 0, fill: "+1", backgroundColor: "rgba(47,111,237,0.12)" },
-        { label: "Predicted rate", data: FORECAST.points.map(p => p.predicted_rate), borderColor: "#2f6fed", backgroundColor: "#2f6fed", borderWidth: 2, pointRadius: 0 },
         { label: "Lower bound", data: FORECAST.points.map(p => p.lower_bound), borderWidth: 0, pointRadius: 0, fill: false },
+        { label: "Upper bound", data: FORECAST.points.map(p => p.upper_bound), borderWidth: 0, pointRadius: 0, fill: 0, backgroundColor: "rgba(47,111,237,0.15)" },
+        { label: "Predicted rate", data: FORECAST.points.map(p => p.predicted_rate), borderColor: "#2f6fed", backgroundColor: "#2f6fed", borderWidth: 2, pointRadius: 0, fill: false },
       ],
     },
     options: {
       responsive: true,
       interaction: { mode: "index", intersect: false },
-      plugins: { legend: { labels: { color: getComputedStyle(document.body).getPropertyValue("--text-secondary") } } },
+      plugins: {
+        legend: { labels: { color: secondaryColor } },
+        tooltip: {
+          filter: (item) => item.dataset.label === "Predicted rate",
+          callbacks: { label: (item) => `Predicted: $${item.parsed.y.toFixed(2)}/t` },
+        },
+      },
       scales: {
-        x: { ticks: { maxTicksLimit: 8, color: getComputedStyle(document.body).getPropertyValue("--text-secondary") }, grid: { display: false } },
-        y: { ticks: { color: getComputedStyle(document.body).getPropertyValue("--text-secondary") }, grid: { color: "rgba(128,128,128,0.15)" } },
+        x: { ticks: { maxTicksLimit: 8, color: secondaryColor }, grid: { display: false } },
+        y: { ticks: { color: secondaryColor }, grid: { color: "rgba(128,128,128,0.15)" } },
       },
     },
   });
