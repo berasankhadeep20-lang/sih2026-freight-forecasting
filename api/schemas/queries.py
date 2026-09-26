@@ -6,6 +6,7 @@ class QueryRequest(BaseModel):
     origin_port_id: str
     destination_port_id: str
     horizon_days: int = Field(default=60, gt=0, le=180)
+    desired_duration_type: str = Field(default="spot", pattern="^(spot|short_term|mid_term)$")
 
 
 class ForecastPointOut(BaseModel):
@@ -49,12 +50,19 @@ class RouteSummaryOut(BaseModel):
 
 
 class QueryResponse(BaseModel):
+    query_id: int | None
     route: RouteSummaryOut
     recommended_vessel: VesselRecommendationOut
     forecast: ForecastOut
     timing_windows: list[TimingWindowOut]
     risk_alerts: list[RiskAlertOut]
     forecast_vessel_class_note: str | None
+
+
+class QuerySummaryOut(BaseModel):
+    query_id: int
+    route_id: str
+    requested_at: str
 
 
 class ErrorDetail(BaseModel):

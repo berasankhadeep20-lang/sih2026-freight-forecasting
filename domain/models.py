@@ -130,6 +130,18 @@ class QueryResult:
     timing_windows: list[TimingWindow]
     risk_alerts: list[RiskAlert]
     forecast_vessel_class_note: str | None = None
+    query_id: int | None = None  # set once persisted (Schema §3.11); None for an unsaved result
+
+
+@dataclass(frozen=True)
+class QuerySummary:
+    """Lightweight row for GET /queries (history list) — API Design v0.1 §3.
+    Deliberately doesn't carry the full forecast; that's what
+    GET /queries/{id} is for."""
+
+    query_id: int
+    route_id: str
+    requested_at: datetime
 
 
 class RouteNotFoundError(ValueError):
@@ -145,7 +157,7 @@ class RouteFreightRate:
     route_id: str
     vessel_class: VesselClass
     trade_date: date
-    adjusted_rate_usd_per_tonne: float
+    adjusted_rate_usd_per_day: float
     generated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 

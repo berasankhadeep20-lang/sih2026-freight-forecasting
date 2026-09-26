@@ -29,7 +29,7 @@ class SqlAlchemyRateRepository:
                 route_id=row.route_id,
                 vessel_class=vessel_class,
                 trade_date=row.trade_date,
-                adjusted_rate_usd_per_tonne=row.adjusted_rate_usd_per_tonne,
+                adjusted_rate_usd_per_day=row.adjusted_rate_usd_per_day,
             )
             for row in rows
         ]

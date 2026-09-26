@@ -79,7 +79,7 @@ class EnsembleForecastModel:
         prophet_train.fit(train)
         val_pred = prophet_train.predict_future(train[-1].trade_date, len(validation))
         prophet_only_mape = _mape(
-            [r.adjusted_rate_usd_per_tonne for r in validation], val_pred["yhat"].tolist()
+            [r.adjusted_rate_usd_per_day for r in validation], val_pred["yhat"].tolist()
         )
 
         # --- Step 2: residual model on train, try to beat step 1 ----------
@@ -88,7 +88,7 @@ class EnsembleForecastModel:
         try:
             train_fit = prophet_train.predict_in_sample(train)
             train_residuals = [
-                actual.adjusted_rate_usd_per_tonne - fitted
+                actual.adjusted_rate_usd_per_day - fitted
                 for actual, fitted in zip(train, train_fit["yhat"].tolist())
             ]
             xgb_train = XGBoostResidualModel()
@@ -98,7 +98,7 @@ class EnsembleForecastModel:
                 p + r for p, r in zip(val_pred["yhat"].tolist(), residual_forecast)
             ]
             combined_mape = _mape(
-                [r.adjusted_rate_usd_per_tonne for r in validation], combined_pred
+                [r.adjusted_rate_usd_per_day for r in validation], combined_pred
             )
             can_use_residual = True
         except InsufficientResidualHistoryError:
@@ -129,7 +129,7 @@ class EnsembleForecastModel:
         if self._use_residual_correction:
             full_fit = self._final_prophet.predict_in_sample(history)
             full_residuals = [
-                actual.adjusted_rate_usd_per_tonne - fitted
+                actual.adjusted_rate_usd_per_day - fitted
                 for actual, fitted in zip(history, full_fit["yhat"].tolist())
             ]
             self._final_xgb = XGBoostResidualModel()

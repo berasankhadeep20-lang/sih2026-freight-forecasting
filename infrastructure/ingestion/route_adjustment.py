@@ -61,7 +61,7 @@ def apply_route_adjustment(
                 route_id=factor.route_id,
                 vessel_class=factor.vessel_class,
                 trade_date=bv.trade_date,
-                adjusted_rate_usd_per_tonne=round(adjusted, 2),
+                adjusted_rate_usd_per_day=round(adjusted, 2),
             )
         )
     return results

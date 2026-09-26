@@ -1,4 +1,6 @@
-data/raw/*.csv
+# data/raw/*.csv is intentionally NOT ignored — shipping_rates.csv and
+# port_congestion.csv are the real dataset this project runs on
+# (~436KB total), not a placeholder. Commit them.
 __pycache__/
 *.pyc
 .pytest_cache/

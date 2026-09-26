@@ -68,7 +68,7 @@ def setup_test_db():
     db.add_all([
         RouteFreightRateORM(
             route_id="route-1", vessel_class_id="Panamax",
-            trade_date=r.trade_date, adjusted_rate_usd_per_tonne=r.adjusted_rate_usd_per_tonne,
+            trade_date=r.trade_date, adjusted_rate_usd_per_day=r.adjusted_rate_usd_per_day,
         )
         for r in history
     ])
@@ -141,3 +141,49 @@ def test_post_queries_rejects_non_positive_cargo_volume():
         "destination_port_id": "PARADIP",
     })
     assert resp.status_code == 422
+
+
+def test_post_queries_response_includes_a_real_query_id():
+    """This is what proves persistence actually happened through the real
+    API + real SQLAlchemy repository, not just the in-memory fake used in
+    the unit tests."""
+    resp = client.post("/queries", json={
+        "cargo_volume_tonnes": 70000, "origin_port_id": "AUS",
+        "destination_port_id": "PARADIP", "horizon_days": 60,
+    })
+    assert resp.status_code == 201
+    assert isinstance(resp.json()["query_id"], int)
+
+
+def test_get_query_by_id_reconstructs_the_same_result():
+    post_resp = client.post("/queries", json={
+        "cargo_volume_tonnes": 70000, "origin_port_id": "AUS",
+        "destination_port_id": "PARADIP", "horizon_days": 60,
+    })
+    query_id = post_resp.json()["query_id"]
+
+    get_resp = client.get(f"/queries/{query_id}")
+    assert get_resp.status_code == 200
+    body = get_resp.json()
+    assert body["query_id"] == query_id
+    assert body["recommended_vessel"]["vessel_class"] == post_resp.json()["recommended_vessel"]["vessel_class"]
+    assert body["recommended_vessel"]["reason"] == post_resp.json()["recommended_vessel"]["reason"]
+    assert len(body["forecast"]["points"]) == 60
+
+
+def test_get_query_unknown_id_returns_404():
+    resp = client.get("/queries/999999")
+    assert resp.status_code == 404
+
+
+def test_list_queries_returns_recent_entries_newest_first():
+    client.post("/queries", json={
+        "cargo_volume_tonnes": 50000, "origin_port_id": "AUS",
+        "destination_port_id": "PARADIP", "horizon_days": 30,
+    })
+    resp = client.get("/queries?limit=5")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) >= 1
+    # newest first: the most recently posted query_id should lead
+    assert body[0]["query_id"] >= body[-1]["query_id"]

@@ -101,7 +101,7 @@ def test_route_adjustment_formula_by_hand():
 
     expected_seasonal = math.sin(2 * math.pi * 1 / 365.25)  # day-of-year 1
     expected_rate = round(1000.0 * 1.5 * (1 + 0.1 * expected_seasonal), 2)
-    assert result[0].adjusted_rate_usd_per_tonne == expected_rate
+    assert result[0].adjusted_rate_usd_per_day == expected_rate
     assert result[0].route_id == "route-1"
 
 

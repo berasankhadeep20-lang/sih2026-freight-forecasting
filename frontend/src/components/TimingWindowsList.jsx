@@ -17,7 +17,7 @@ export default function TimingWindowsList({ windows }) {
             #{w.rank} · Day {w.start_day_offset}–{w.end_day_offset}
           </span>
           <span className="text-sm font-mono text-slate-900">
-            avg ${w.avg_predicted_rate.toFixed(2)}/t
+            avg ${w.avg_predicted_rate.toFixed(2)}/day
           </span>
         </div>
       ))}

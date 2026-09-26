@@ -45,7 +45,7 @@ class ProphetModel:
         df = pd.DataFrame(
             {
                 "ds": [r.trade_date for r in history],
-                "y": [r.adjusted_rate_usd_per_tonne for r in history],
+                "y": [r.adjusted_rate_usd_per_day for r in history],
             }
         )
         self._model.fit(df)

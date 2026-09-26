@@ -1,52 +1,37 @@
 """
-POST /queries — implements API Design v0.1 §3. This router is
-deliberately thin: it translates HTTP <-> domain objects and maps
-domain exceptions to status codes. All the actual logic already lives
-in QueryOrchestrator and the four services it coordinates.
+POST /queries, GET /queries/{id}, GET /queries — implements API Design
+v0.1 §3. This router is deliberately thin: it translates HTTP <->
+domain objects and maps domain exceptions to status codes. All the
+actual logic already lives in QueryOrchestrator, the four services it
+coordinates, and SqlAlchemyQueryRepository for history lookups.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
-from api.dependencies import get_query_orchestrator
+from api.dependencies import get_query_orchestrator, get_query_repository
 from api.schemas.queries import (
     ForecastOut,
     ForecastPointOut,
     QueryRequest,
     QueryResponse,
+    QuerySummaryOut,
     RiskAlertOut,
     RouteSummaryOut,
     TimingWindowOut,
     VesselRecommendationOut,
 )
 from application.query_orchestrator import QueryOrchestrator
-from domain.models import InsufficientHistoryError, NoVesselCapacityError, RouteNotFoundError
+from domain.enums import DurationType
+from domain.models import InsufficientHistoryError, NoVesselCapacityError, QueryResult, RouteNotFoundError
+from infrastructure.db.repositories.sqlalchemy_query_repository import SqlAlchemyQueryRepository
 
 router = APIRouter(tags=["queries"])
 
 
-@router.post("/queries", response_model=QueryResponse, status_code=201)
-async def submit_query(
-    request: QueryRequest,
-    orchestrator: QueryOrchestrator = Depends(get_query_orchestrator),
-):
-    try:
-        result = await orchestrator.handle_query(
-            cargo_volume_tonnes=request.cargo_volume_tonnes,
-            origin_port_id=request.origin_port_id,
-            destination_port_id=request.destination_port_id,
-            horizon_days=request.horizon_days,
-        )
-    except RouteNotFoundError as e:
-        # FR-1.2: inform the user rather than silently guessing.
-        raise HTTPException(status_code=422, detail=str(e))
-    except NoVesselCapacityError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except InsufficientHistoryError as e:
-        # Not the user's fault (it's a data-availability gap), but they
-        # still need a plain-language reason, not a bare 500.
-        raise HTTPException(status_code=422, detail=str(e))
-
+def _to_response(result: QueryResult) -> QueryResponse:
     return QueryResponse(
+        query_id=result.query_id,
         route=RouteSummaryOut(
             route_id=result.route.route_id,
             origin_port_id=result.route.origin_port_id,
@@ -85,3 +70,52 @@ async def submit_query(
         ],
         forecast_vessel_class_note=result.forecast_vessel_class_note,
     )
+
+
+@router.post("/queries", response_model=QueryResponse, status_code=201)
+async def submit_query(
+    request: QueryRequest,
+    orchestrator: QueryOrchestrator = Depends(get_query_orchestrator),
+):
+    try:
+        result = await orchestrator.handle_query(
+            cargo_volume_tonnes=request.cargo_volume_tonnes,
+            origin_port_id=request.origin_port_id,
+            destination_port_id=request.destination_port_id,
+            horizon_days=request.horizon_days,
+            duration_type=DurationType(request.desired_duration_type),
+        )
+    except RouteNotFoundError as e:
+        # FR-1.2: inform the user rather than silently guessing.
+        raise HTTPException(status_code=422, detail=str(e))
+    except NoVesselCapacityError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except InsufficientHistoryError as e:
+        # Not the user's fault (it's a data-availability gap), but they
+        # still need a plain-language reason, not a bare 500.
+        raise HTTPException(status_code=422, detail=str(e))
+
+    return _to_response(result)
+
+
+@router.get("/queries/{query_id}", response_model=QueryResponse)
+def get_query(query_id: int, repo: SqlAlchemyQueryRepository = Depends(get_query_repository)):
+    result = repo.get_query(query_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"No query found with id {query_id}")
+    return _to_response(result)
+
+
+@router.get("/queries", response_model=list[QuerySummaryOut])
+def list_queries(
+    limit: int = 25, offset: int = 0,
+    repo: SqlAlchemyQueryRepository = Depends(get_query_repository),
+):
+    summaries = repo.list_queries(limit=limit, offset=offset)
+    return [
+        QuerySummaryOut(
+            query_id=s.query_id, route_id=s.route_id,
+            requested_at=s.requested_at.isoformat(),
+        )
+        for s in summaries
+    ]

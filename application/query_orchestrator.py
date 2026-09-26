@@ -24,14 +24,25 @@ to a smaller class than the natural one (a port constraint forced it),
 that mismatch is surfaced in `forecast_vessel_class_note` rather than
 silently forecasting one class while recommending another with no
 explanation.
+
+query_repo is OPTIONAL (defaults to None) rather than a required
+constructor argument. This is a deliberate choice, not an oversight:
+making it required would force every existing test and caller to pass
+a repository they don't care about, just to keep working, the moment
+FR-8.3 logging was added. Persistence is a side effect of handling a
+query, not a precondition for it — if query_repo is None, the query
+still resolves correctly, it just isn't logged. Callers that DO want
+logging (the real API) pass a real repository.
 """
 
 from __future__ import annotations
 
 import asyncio
 
+from domain.enums import DurationType
 from domain.models import QueryResult, RouteNotFoundError
 from application.interfaces.port_repository import PortRepositoryProtocol
+from application.interfaces.query_repository import QueryRepositoryProtocol
 from application.interfaces.route_repository import RouteRepositoryProtocol
 from application.interfaces.vessel_class_repository import VesselClassRepositoryProtocol
 from application.forecasting_service import ForecastingService
@@ -47,11 +58,13 @@ class QueryOrchestrator:
         port_repo: PortRepositoryProtocol,
         vessel_class_repo: VesselClassRepositoryProtocol,
         forecasting_service: ForecastingService,
+        query_repo: QueryRepositoryProtocol | None = None,
     ):
         self._route_repo = route_repo
         self._port_repo = port_repo
         self._vessel_class_repo = vessel_class_repo
         self._forecasting_service = forecasting_service
+        self._query_repo = query_repo
 
     async def handle_query(
         self,
@@ -59,6 +72,7 @@ class QueryOrchestrator:
         origin_port_id: str,
         destination_port_id: str,
         horizon_days: int = 60,
+        duration_type: DurationType = DurationType.SPOT,
     ) -> QueryResult:
         route = self._route_repo.get_route(origin_port_id, destination_port_id)
         if route is None:
@@ -109,7 +123,7 @@ class QueryOrchestrator:
                 f"a port constraint — see the recommendation's own reason for detail."
             )
 
-        return QueryResult(
+        result = QueryResult(
             route=route,
             recommended_vessel=vessel_recommendation,
             forecast=forecast,
@@ -117,3 +131,22 @@ class QueryOrchestrator:
             risk_alerts=risk_alerts,
             forecast_vessel_class_note=note,
         )
+
+        if self._query_repo is not None:
+            query_id = self._query_repo.save_query_result(
+                cargo_volume_tonnes, duration_type, result
+            )
+            # QueryResult is frozen (immutable) by design elsewhere in the
+            # domain layer, so the persisted ID is attached via a new
+            # instance rather than mutating the one just built.
+            result = QueryResult(
+                route=result.route,
+                recommended_vessel=result.recommended_vessel,
+                forecast=result.forecast,
+                timing_windows=result.timing_windows,
+                risk_alerts=result.risk_alerts,
+                forecast_vessel_class_note=result.forecast_vessel_class_note,
+                query_id=query_id,
+            )
+
+        return result

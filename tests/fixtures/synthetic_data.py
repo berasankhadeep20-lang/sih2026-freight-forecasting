@@ -27,7 +27,7 @@ def generate_synthetic_history(
     seed: int = 42,
 ) -> list[RouteFreightRate]:
     rng = np.random.default_rng(seed)
-    base = 20.0  # USD/tonne-ish baseline
+    base = 20.0  # USD\/day-ish baseline (Handysize time-charter rate)
     trend_per_day = 0.01
     seasonal_amplitude = 3.0
     noise_std = 0.8
@@ -46,7 +46,7 @@ def generate_synthetic_history(
                 route_id=route_id,
                 vessel_class=vessel_class,
                 trade_date=d,
-                adjusted_rate_usd_per_tonne=round(rate, 2),
+                adjusted_rate_usd_per_day=round(rate, 2),
             )
         )
     return history

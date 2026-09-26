@@ -26,7 +26,7 @@ export default function ForecastChart({ forecast }) {
         <ComposedChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey="day" tick={{ fontSize: 12 }} label={{ value: "Day", position: "insideBottom", offset: -3, fontSize: 12 }} />
-          <YAxis tick={{ fontSize: 12 }} label={{ value: "USD/tonne", angle: -90, position: "insideLeft", fontSize: 12 }} />
+          <YAxis tick={{ fontSize: 12 }} label={{ value: "USD/day", angle: -90, position: "insideLeft", fontSize: 12 }} />
           <Tooltip
             formatter={(value, name) => {
               if (name === "band") return null;
